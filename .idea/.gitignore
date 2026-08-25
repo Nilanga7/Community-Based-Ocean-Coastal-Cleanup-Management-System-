@@ -1,0 +1,36 @@
+# ---------- IDE ----------
+.idea/
+/shelf/
+/workspace.xml
+# Editor-based HTTP Client requests
+/httpRequests/
+.vscode/
+*.iml
+
+# ---------- OS ----------
+.DS_Store
+Thumbs.db
+
+# ---------- Backend (Spring Boot / Maven) ----------
+backend/target/
+backend/.mvn/wrapper/maven-wrapper.jar
+backend/*.log
+backend/src/main/resources/application-local.properties
+
+# ---------- Frontend (React / Vite) ----------
+frontend/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+frontend/*.local
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+
+# ---------- Secrets & env ----------
+.env
+.env.local
+.env.*.local
+*.pem
+
+# ---------- Docker ----------
+# (docker-compose.yml itself IS committed — this only ignores runtime artifacts)
