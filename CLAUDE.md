@@ -103,7 +103,7 @@ mobile apps, real-time GPS tracking of volunteers, and legal enforcement feature
 
 When scaffolding the actual `backend/` and `frontend/` projects, this maps to:
 - `backend/` → a Spring Boot (Java) application exposing REST endpoints, backed by MySQL, built with Maven.
-- `frontend/` → a React.js PWA (Vite or CRA + service worker) consuming those REST endpoints.
+- `frontend/` → a React.js PWA, scaffolded with Vite (`vite-plugin-pwa` for the manifest/service worker) consuming those REST endpoints.
 
 Supporting tooling from the report: **Git/GitHub** for version control, **Docker** (via
 `docker-compose.yml` at the repo root) so all contributors run an identical local MySQL instance,
@@ -222,8 +222,17 @@ differently:
 4. **Seed data.** No seed script exists yet — the schema starts completely empty after Flyway
    runs, including no admin user. Creating one (and any other baseline data) is part of Build
    order step 2 (User Registration & Profile Management), not step 1.
-5. **Frontend.** `frontend/` is still an empty placeholder (see "Project status") — steps here
-   once it's scaffolded.
+5. **Frontend.** `frontend/` is scaffolded — React 19 + Vite, with `vite-plugin-pwa`
+   (`registerType: 'autoUpdate'`) wired up in `vite.config.js` and the PWA manifest already
+   branded (name, theme/background color, icons) for this project. UI content is still the
+   default Vite+React starter page (`src/App.jsx`) — not yet wired to the backend: no API client,
+   no `frontend/.env`, and no `frontend/src/shared/` yet (see Working conventions). Linting is
+   Oxlint (`.oxlintrc.json`); there's no frontend test runner configured yet. From `frontend/`:
+   - `npm install` — once, after cloning
+   - `npm run dev` — Vite dev server with HMR, default `http://localhost:5173`
+   - `npm run build` — production build to `frontend/dist/`
+   - `npm run preview` — serve the production build locally
+   - `npm run lint` — run Oxlint
 
 ## Build order
 
