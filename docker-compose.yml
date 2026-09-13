@@ -3,10 +3,10 @@ services:
     image: mysql:8.0
     restart: unless-stopped
     environment:
-      MYSQL_DATABASE: cleanup_system
-      MYSQL_ROOT_PASSWORD: MySqL11
+      MYSQL_DATABASE: ${DB_NAME:-cleanup_system}
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-MySqL11}
     ports:
-      - "3308:3306"
+      - "${DB_PORT:-3308}:3306"
     volumes:
       - db_data:/var/lib/mysql
 
