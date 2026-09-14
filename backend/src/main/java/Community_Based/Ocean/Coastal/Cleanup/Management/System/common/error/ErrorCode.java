@@ -7,6 +7,7 @@ package Community_Based.Ocean.Coastal.Cleanup.Management.System.common.error;
 public enum ErrorCode {
 
     VALIDATION_ERROR("Request validation failed"),
+    CONFLICT("The request conflicts with existing data"),
     NOT_FOUND("The requested resource was not found"),
     UNAUTHORIZED("Authentication required"),
     FORBIDDEN("You do not have permission to access this resource"),
