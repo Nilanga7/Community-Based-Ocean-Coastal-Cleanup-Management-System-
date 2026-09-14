@@ -46,13 +46,17 @@ class UserRepositoryTest {
 
     @Test
     void existsByRole_reflectsWhetherThatRoleHasAnyUser() {
-        // Assumes a schema with no seeded users yet (true at this stage — bootstrap admin
-        // creation is Step 7c, not yet built).
-        assertThat(userRepository.existsByRole(UserRole.ADMIN)).isFalse();
+        // Deliberately NOT UserRole.ADMIN: AdminBootstrapRunner (Step 7c) is a real
+        // ApplicationRunner that creates a real, permanently-committed ADMIN row the first time
+        // any full @SpringBootTest context starts (that happens outside this test's own
+        // transaction, so it isn't rolled back) — asserting "no ADMIN exists yet" would be order-
+        // dependent on which test class happens to trigger that context first. GOVERNMENT_OFFICER
+        // is never auto-created by anything, so it stays a reliable "definitely no rows yet" role.
+        assertThat(userRepository.existsByRole(UserRole.GOVERNMENT_OFFICER)).isFalse();
 
-        userRepository.saveAndFlush(validUser("first-admin@example.com", UserRole.ADMIN));
+        userRepository.saveAndFlush(validUser("first-gov-officer@example.com", UserRole.GOVERNMENT_OFFICER));
 
-        assertThat(userRepository.existsByRole(UserRole.ADMIN)).isTrue();
+        assertThat(userRepository.existsByRole(UserRole.GOVERNMENT_OFFICER)).isTrue();
     }
 
     @Test

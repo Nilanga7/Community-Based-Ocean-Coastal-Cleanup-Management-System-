@@ -1,6 +1,8 @@
 package Community_Based.Ocean.Coastal.Cleanup.Management.System.user.service;
 
 import Community_Based.Ocean.Coastal.Cleanup.Management.System.common.config.JwtService;
+import Community_Based.Ocean.Coastal.Cleanup.Management.System.common.entity.Admin;
+import Community_Based.Ocean.Coastal.Cleanup.Management.System.common.entity.GovernmentOfficer;
 import Community_Based.Ocean.Coastal.Cleanup.Management.System.common.entity.Organization;
 import Community_Based.Ocean.Coastal.Cleanup.Management.System.common.entity.User;
 import Community_Based.Ocean.Coastal.Cleanup.Management.System.common.entity.VolunteerDiver;
@@ -10,13 +12,17 @@ import Community_Based.Ocean.Coastal.Cleanup.Management.System.common.entity.enu
 import Community_Based.Ocean.Coastal.Cleanup.Management.System.common.error.BusinessValidationException;
 import Community_Based.Ocean.Coastal.Cleanup.Management.System.common.error.ConflictException;
 import Community_Based.Ocean.Coastal.Cleanup.Management.System.common.error.ForbiddenOperationException;
+import Community_Based.Ocean.Coastal.Cleanup.Management.System.common.repository.AdminRepository;
+import Community_Based.Ocean.Coastal.Cleanup.Management.System.common.repository.GovernmentOfficerRepository;
 import Community_Based.Ocean.Coastal.Cleanup.Management.System.common.repository.OrganizationRepository;
 import Community_Based.Ocean.Coastal.Cleanup.Management.System.common.repository.UserRepository;
 import Community_Based.Ocean.Coastal.Cleanup.Management.System.common.repository.VolunteerDiverRepository;
 import Community_Based.Ocean.Coastal.Cleanup.Management.System.common.repository.VolunteerNonDiverRepository;
+import Community_Based.Ocean.Coastal.Cleanup.Management.System.user.dto.AdminCreatedUserRequest;
 import Community_Based.Ocean.Coastal.Cleanup.Management.System.user.dto.AuthResponse;
 import Community_Based.Ocean.Coastal.Cleanup.Management.System.user.dto.LoginRequest;
 import Community_Based.Ocean.Coastal.Cleanup.Management.System.user.dto.RegisterRequest;
+import Community_Based.Ocean.Coastal.Cleanup.Management.System.user.dto.UserProfileResponse;
 import org.hibernate.exception.ConstraintViolationException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -56,6 +62,10 @@ class AuthServiceTest {
     @Mock
     private OrganizationRepository organizationRepository;
     @Mock
+    private AdminRepository adminRepository;
+    @Mock
+    private GovernmentOfficerRepository governmentOfficerRepository;
+    @Mock
     private PasswordEncoder passwordEncoder;
 
     // Concrete class with a 2-arg constructor — mock() bypasses the constructor via Mockito's
@@ -68,7 +78,8 @@ class AuthServiceTest {
     void setUp() {
         authService = new AuthService(
                 userRepository, volunteerNonDiverRepository, volunteerDiverRepository,
-                organizationRepository, passwordEncoder, jwtService
+                organizationRepository, adminRepository, governmentOfficerRepository,
+                passwordEncoder, jwtService
         );
     }
 
@@ -78,7 +89,13 @@ class AuthServiceTest {
         );
     }
 
-    private void stubSuccessfulSave() {
+    private AdminCreatedUserRequest adminCreatedRequest(UserRole role, AdminCreatedUserRequest.RoleDetails details) {
+        return new AdminCreatedUserRequest(
+                "Grace", "Hopper", "grace@example.com", "supersecret", "0779876543", role, details
+        );
+    }
+
+    private void stubSuccessfulUserRowCreation() {
         when(userRepository.findByEmail(anyString())).thenReturn(Optional.empty());
         when(passwordEncoder.encode(anyString())).thenReturn("hashed-password");
         when(userRepository.save(any(User.class))).thenAnswer(invocation -> {
@@ -86,6 +103,10 @@ class AuthServiceTest {
             user.setUserId(1);
             return user;
         });
+    }
+
+    private void stubSuccessfulSave() {
+        stubSuccessfulUserRowCreation();
         when(jwtService.generateToken(eq(1), any(UserRole.class))).thenReturn("fake-jwt");
         when(jwtService.getExpirationMs()).thenReturn(86_400_000L);
     }
@@ -246,6 +267,58 @@ class AuthServiceTest {
         assertThatThrownBy(() -> authService.register(request))
                 .isNotInstanceOf(ConflictException.class)
                 .isSameAs(original);
+    }
+
+    @Test
+    void createAdminAccount_createsUserAndAdminRow_withNoTokenReturned() {
+        stubSuccessfulUserRowCreation();
+
+        UserProfileResponse response =
+                authService.createAdminOrGovernmentOfficerAccount(adminCreatedRequest(UserRole.ADMIN, null));
+
+        assertThat(response.userId()).isEqualTo(1);
+        assertThat(response.role()).isEqualTo(UserRole.ADMIN);
+
+        ArgumentCaptor<Admin> captor = ArgumentCaptor.forClass(Admin.class);
+        verify(adminRepository).save(captor.capture());
+        assertThat(captor.getValue().getUser().getUserId()).isEqualTo(1);
+
+        verify(governmentOfficerRepository, never()).save(any());
+        // Provisioning someone else's account must not auto-log-in — no token minted.
+        verify(jwtService, never()).generateToken(any(), any());
+    }
+
+    @Test
+    void createGovernmentOfficerAccount_createsUserAndSubtypeRow() {
+        stubSuccessfulUserRowCreation();
+        AdminCreatedUserRequest.RoleDetails details =
+                new AdminCreatedUserRequest.RoleDetails("Marine Affairs", "Senior Officer");
+
+        authService.createAdminOrGovernmentOfficerAccount(
+                adminCreatedRequest(UserRole.GOVERNMENT_OFFICER, details)
+        );
+
+        ArgumentCaptor<GovernmentOfficer> captor = ArgumentCaptor.forClass(GovernmentOfficer.class);
+        verify(governmentOfficerRepository).save(captor.capture());
+        assertThat(captor.getValue().getDepartment()).isEqualTo("Marine Affairs");
+        assertThat(captor.getValue().getDesignation()).isEqualTo("Senior Officer");
+        assertThat(captor.getValue().getUser().getUserId()).isEqualTo(1);
+
+        verify(adminRepository, never()).save(any());
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = UserRole.class, names = {"VOLUNTEER_NON_DIVER", "VOLUNTEER_DIVER", "ORGANIZATION"})
+    void createAdminOrGovernmentOfficerAccount_withSelfRegisterableRole_isRejected(UserRole role) {
+        AdminCreatedUserRequest request = adminCreatedRequest(role, null);
+
+        assertThatThrownBy(() -> authService.createAdminOrGovernmentOfficerAccount(request))
+                .isInstanceOf(ForbiddenOperationException.class)
+                .hasMessage("This endpoint only creates ADMIN or GOVERNMENT_OFFICER accounts");
+
+        verify(userRepository, never()).save(any());
+        verify(adminRepository, never()).save(any());
+        verify(governmentOfficerRepository, never()).save(any());
     }
 
     @Test

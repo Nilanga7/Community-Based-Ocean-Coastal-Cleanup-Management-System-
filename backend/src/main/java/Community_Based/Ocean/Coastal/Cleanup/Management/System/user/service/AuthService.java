@@ -1,6 +1,8 @@
 package Community_Based.Ocean.Coastal.Cleanup.Management.System.user.service;
 
 import Community_Based.Ocean.Coastal.Cleanup.Management.System.common.config.JwtService;
+import Community_Based.Ocean.Coastal.Cleanup.Management.System.common.entity.Admin;
+import Community_Based.Ocean.Coastal.Cleanup.Management.System.common.entity.GovernmentOfficer;
 import Community_Based.Ocean.Coastal.Cleanup.Management.System.common.entity.Organization;
 import Community_Based.Ocean.Coastal.Cleanup.Management.System.common.entity.User;
 import Community_Based.Ocean.Coastal.Cleanup.Management.System.common.entity.VolunteerDiver;
@@ -10,13 +12,17 @@ import Community_Based.Ocean.Coastal.Cleanup.Management.System.common.entity.enu
 import Community_Based.Ocean.Coastal.Cleanup.Management.System.common.error.BusinessValidationException;
 import Community_Based.Ocean.Coastal.Cleanup.Management.System.common.error.ConflictException;
 import Community_Based.Ocean.Coastal.Cleanup.Management.System.common.error.ForbiddenOperationException;
+import Community_Based.Ocean.Coastal.Cleanup.Management.System.common.repository.AdminRepository;
+import Community_Based.Ocean.Coastal.Cleanup.Management.System.common.repository.GovernmentOfficerRepository;
 import Community_Based.Ocean.Coastal.Cleanup.Management.System.common.repository.OrganizationRepository;
 import Community_Based.Ocean.Coastal.Cleanup.Management.System.common.repository.UserRepository;
 import Community_Based.Ocean.Coastal.Cleanup.Management.System.common.repository.VolunteerDiverRepository;
 import Community_Based.Ocean.Coastal.Cleanup.Management.System.common.repository.VolunteerNonDiverRepository;
+import Community_Based.Ocean.Coastal.Cleanup.Management.System.user.dto.AdminCreatedUserRequest;
 import Community_Based.Ocean.Coastal.Cleanup.Management.System.user.dto.AuthResponse;
 import Community_Based.Ocean.Coastal.Cleanup.Management.System.user.dto.LoginRequest;
 import Community_Based.Ocean.Coastal.Cleanup.Management.System.user.dto.RegisterRequest;
+import Community_Based.Ocean.Coastal.Cleanup.Management.System.user.dto.UserProfileResponse;
 import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -46,6 +52,8 @@ public class AuthService {
     private final VolunteerNonDiverRepository volunteerNonDiverRepository;
     private final VolunteerDiverRepository volunteerDiverRepository;
     private final OrganizationRepository organizationRepository;
+    private final AdminRepository adminRepository;
+    private final GovernmentOfficerRepository governmentOfficerRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
 
@@ -54,6 +62,8 @@ public class AuthService {
             VolunteerNonDiverRepository volunteerNonDiverRepository,
             VolunteerDiverRepository volunteerDiverRepository,
             OrganizationRepository organizationRepository,
+            AdminRepository adminRepository,
+            GovernmentOfficerRepository governmentOfficerRepository,
             PasswordEncoder passwordEncoder,
             JwtService jwtService
     ) {
@@ -61,6 +71,8 @@ public class AuthService {
         this.volunteerNonDiverRepository = volunteerNonDiverRepository;
         this.volunteerDiverRepository = volunteerDiverRepository;
         this.organizationRepository = organizationRepository;
+        this.adminRepository = adminRepository;
+        this.governmentOfficerRepository = governmentOfficerRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
     }
@@ -73,38 +85,38 @@ public class AuthService {
 
         validateRoleDetails(request.role(), request.roleDetails());
 
-        if (userRepository.findByEmail(request.email()).isPresent()) {
-            throw new ConflictException(DUPLICATE_EMAIL_MESSAGE);
-        }
-
-        User user = User.builder()
-                .firstName(request.firstName())
-                .lastName(request.lastName())
-                .email(request.email())
-                .password(passwordEncoder.encode(request.password()))
-                .phone(request.phone())
-                .role(request.role())
-                .status(UserStatus.ACTIVE)
-                .createdDate(LocalDateTime.now())
-                .build();
-
-        try {
-            user = userRepository.save(user);
-        } catch (DataIntegrityViolationException e) {
-            // Backstop for a concurrent registration racing the findByEmail check above. Only
-            // reclassify as "duplicate email" if the violated constraint is actually
-            // uk_users_email — any other constraint violation here is unexpected (validation
-            // above should have already ruled out the known causes) and must not be mislabeled;
-            // rethrow it as-is so it surfaces as a genuine 500, not a misleading conflict.
-            if (isDuplicateEmailConstraintViolation(e)) {
-                throw new ConflictException(DUPLICATE_EMAIL_MESSAGE);
-            }
-            throw e;
-        }
+        User user = createUserRow(
+                request.firstName(), request.lastName(), request.email(),
+                request.password(), request.phone(), request.role()
+        );
 
         createRoleSubtype(user, request.roleDetails());
 
         return issueAuthResponse(user);
+    }
+
+    /**
+     * Admin-only provisioning of an ADMIN/GOVERNMENT_OFFICER account (POST /admin/users,
+     * @PreAuthorize("hasRole('ADMIN')") on the controller). Unlike register(), this does not
+     * auto-log-in the new account — it's provisioning someone else's account, not the caller's
+     * own session — so it returns a UserProfileResponse, not an AuthResponse/token.
+     */
+    @Transactional
+    public UserProfileResponse createAdminOrGovernmentOfficerAccount(AdminCreatedUserRequest request) {
+        if (!isAdminCreatable(request.role())) {
+            throw new ForbiddenOperationException(
+                    "This endpoint only creates ADMIN or GOVERNMENT_OFFICER accounts"
+            );
+        }
+
+        User user = createUserRow(
+                request.firstName(), request.lastName(), request.email(),
+                request.password(), request.phone(), request.role()
+        );
+
+        createAdminOrGovernmentOfficerSubtype(user, request.roleDetails());
+
+        return toProfileResponse(user);
     }
 
     public AuthResponse login(LoginRequest request) {
@@ -122,6 +134,46 @@ public class AuthService {
         return role == UserRole.VOLUNTEER_NON_DIVER
                 || role == UserRole.VOLUNTEER_DIVER
                 || role == UserRole.ORGANIZATION;
+    }
+
+    private boolean isAdminCreatable(UserRole role) {
+        return role == UserRole.ADMIN || role == UserRole.GOVERNMENT_OFFICER;
+    }
+
+    // Shared by register() and createAdminOrGovernmentOfficerAccount() — the only difference
+    // between the two flows is which roles are allowed and which subtype row gets created
+    // afterward; the User row itself (hash password, reject duplicate email cleanly) is identical.
+    private User createUserRow(
+            String firstName, String lastName, String email, String rawPassword, String phone, UserRole role
+    ) {
+        if (userRepository.findByEmail(email).isPresent()) {
+            throw new ConflictException(DUPLICATE_EMAIL_MESSAGE);
+        }
+
+        User user = User.builder()
+                .firstName(firstName)
+                .lastName(lastName)
+                .email(email)
+                .password(passwordEncoder.encode(rawPassword))
+                .phone(phone)
+                .role(role)
+                .status(UserStatus.ACTIVE)
+                .createdDate(LocalDateTime.now())
+                .build();
+
+        try {
+            return userRepository.save(user);
+        } catch (DataIntegrityViolationException e) {
+            // Backstop for a concurrent registration racing the findByEmail check above. Only
+            // reclassify as "duplicate email" if the violated constraint is actually
+            // uk_users_email — any other constraint violation here is unexpected (validation
+            // above should have already ruled out the known causes) and must not be mislabeled;
+            // rethrow it as-is so it surfaces as a genuine 500, not a misleading conflict.
+            if (isDuplicateEmailConstraintViolation(e)) {
+                throw new ConflictException(DUPLICATE_EMAIL_MESSAGE);
+            }
+            throw e;
+        }
     }
 
     // organization.organization_name is NOT NULL in V1__init_schema.sql, but that's only
@@ -191,8 +243,41 @@ public class AuthService {
         }
     }
 
+    private void createAdminOrGovernmentOfficerSubtype(User user, AdminCreatedUserRequest.RoleDetails details) {
+        switch (user.getRole()) {
+            case ADMIN -> adminRepository.save(Admin.builder().user(user).build());
+            case GOVERNMENT_OFFICER -> governmentOfficerRepository.save(
+                    GovernmentOfficer.builder()
+                            .user(user)
+                            .department(details == null ? null : details.department())
+                            .designation(details == null ? null : details.designation())
+                            .build()
+            );
+            default -> throw new IllegalStateException(
+                    "Unreachable: role was already validated as admin-creatable"
+            );
+        }
+    }
+
     private AuthResponse issueAuthResponse(User user) {
         String token = jwtService.generateToken(user.getUserId(), user.getRole());
         return new AuthResponse(token, jwtService.getExpirationMs(), user.getUserId(), user.getRole());
+    }
+
+    private UserProfileResponse toProfileResponse(User user) {
+        return new UserProfileResponse(
+                user.getUserId(),
+                user.getFirstName(),
+                user.getLastName(),
+                user.getEmail(),
+                user.getPhone(),
+                user.getRole(),
+                user.getStatus(),
+                user.getDateOfBirth(),
+                user.getAddressLine(),
+                user.getLatitude(),
+                user.getLongitude(),
+                user.getCreatedDate()
+        );
     }
 }
