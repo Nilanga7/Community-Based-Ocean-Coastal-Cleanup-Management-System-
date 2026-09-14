@@ -1,33 +1,4 @@
-HELP.md
-target/
-.mvn/wrapper/maven-wrapper.jar
-!**/src/main/**/target/
-!**/src/test/**/target/
-
-### STS ###
-.apt_generated
-.classpath
-.factorypath
-.project
-.settings
-.springBeans
-.sts4-cache
-
-### IntelliJ IDEA ###
-.idea
-*.iws
-*.iml
-*.ipr
-
-### NetBeans ###
-/nbproject/private/
-/nbbuild/
-/dist/
-/nbdist/
-/.nb-gradle/
-build/
-!**/src/main/**/build/
-!**/src/test/**/build/
-
-### VS Code ###
-.vscode/
+# Uploaded verification documents (local disk storage — see FileStorageService /
+# VERIFICATION_DOCS_DIR in application.properties). Default location; if VERIFICATION_DOCS_DIR
+# is overridden to point elsewhere, that path won't be covered by this line.
+uploads/

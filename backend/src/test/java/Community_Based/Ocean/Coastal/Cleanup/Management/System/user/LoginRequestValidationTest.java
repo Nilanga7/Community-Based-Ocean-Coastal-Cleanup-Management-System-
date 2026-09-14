@@ -1,15 +1,10 @@
 package Community_Based.Ocean.Coastal.Cleanup.Management.System.user;
 
-import Community_Based.Ocean.Coastal.Cleanup.Management.System.common.config.JwtService;
-import Community_Based.Ocean.Coastal.Cleanup.Management.System.common.entity.enums.UserRole;
 import Community_Based.Ocean.Coastal.Cleanup.Management.System.common.error.ErrorCode;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -20,10 +15,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * Exercises LoginRequest's Bean Validation annotations end-to-end through the test-only
- * LoginRequestTestController, reusing GlobalExceptionHandler's MethodArgumentNotValidException
- * handling from Step 4 — the same 400/ErrorResponse pipeline a real /auth/login controller will
- * get for free once it exists. Mirrors RegisterRequestValidationTest's pattern.
+ * Exercises LoginRequest's Bean Validation annotations end-to-end through the real
+ * POST /auth/login (permitAll — no Authorization header needed). Doesn't touch the DB (no user
+ * is ever registered here), so no @Transactional/cleanup is needed.
  */
 @SpringBootTest
 @ActiveProfiles("test")
@@ -32,17 +26,6 @@ class LoginRequestValidationTest {
 
     @Autowired
     private MockMvc mockMvc;
-
-    @Value("${jwt.secret}")
-    private String jwtSecret;
-
-    private String bearerToken;
-
-    @BeforeEach
-    void issueToken() {
-        JwtService jwtService = new JwtService(jwtSecret, 86_400_000L);
-        bearerToken = "Bearer " + jwtService.generateToken(1, UserRole.VOLUNTEER_NON_DIVER);
-    }
 
     @Test
     void blankEmail_failsValidationWith400AndFieldMessage() throws Exception {
@@ -53,8 +36,7 @@ class LoginRequestValidationTest {
                 }
                 """;
 
-        mockMvc.perform(post("/test-only/login")
-                        .header(HttpHeaders.AUTHORIZATION, bearerToken)
+        mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload))
                 .andExpect(status().isBadRequest())
@@ -71,8 +53,7 @@ class LoginRequestValidationTest {
                 }
                 """;
 
-        mockMvc.perform(post("/test-only/login")
-                        .header(HttpHeaders.AUTHORIZATION, bearerToken)
+        mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload))
                 .andExpect(status().isBadRequest())
@@ -89,8 +70,7 @@ class LoginRequestValidationTest {
                 }
                 """;
 
-        mockMvc.perform(post("/test-only/login")
-                        .header(HttpHeaders.AUTHORIZATION, bearerToken)
+        mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload))
                 .andExpect(status().isBadRequest())
@@ -99,18 +79,23 @@ class LoginRequestValidationTest {
     }
 
     @Test
-    void validPayload_passesValidation() throws Exception {
+    void wellFormedPayload_passesValidation_thenFails401AtServiceLayerForNonExistentUser() throws Exception {
+        // Well-formed email/password for a user that was never registered — proves validation
+        // itself doesn't block this request (it would be 400 if it did); the 401 comes from
+        // AuthService.login()'s BadCredentialsException, one layer further in. The genuine
+        // successful-login happy path (a real pre-registered user) is covered by
+        // AuthControllerTest instead, since it needs a registered user to be meaningful.
         String payload = """
                 {
-                  "email": "ada@example.com",
+                  "email": "nobody-login-validation-test@example.com",
                   "password": "supersecret"
                 }
                 """;
 
-        mockMvc.perform(post("/test-only/login")
-                        .header(HttpHeaders.AUTHORIZATION, bearerToken)
+        mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload))
-                .andExpect(status().isNoContent());
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error.code").value(ErrorCode.UNAUTHORIZED.name()));
     }
 }

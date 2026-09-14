@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.context.annotation.Profile;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,8 +23,15 @@ import java.time.LocalDateTime;
  * never self-registerable (see RegisterRequest's Javadoc) and, before this runs, there would be
  * no admin able to use POST /admin/users to create one. Runs once per startup, before the app
  * starts serving requests.
+ * <p>
+ * Disabled under the "test" profile (every full-context test runs with
+ * {@code @ActiveProfiles("test")}) — otherwise this would fire on every such test's context
+ * startup and permanently write a real admin row to whatever database that context is pointed
+ * at, since ApplicationRunner execution happens outside any individual test method's transaction
+ * and is never rolled back.
  */
 @Component
+@Profile("!test")
 public class AdminBootstrapRunner implements ApplicationRunner {
 
     private static final Logger log = LoggerFactory.getLogger(AdminBootstrapRunner.class);
