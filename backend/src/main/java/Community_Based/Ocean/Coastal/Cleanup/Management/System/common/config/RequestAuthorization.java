@@ -16,6 +16,9 @@ public final class RequestAuthorization {
     }
 
     public static Integer principalUserId(Authentication authentication) {
+        if (authentication == null) {
+            throw new ForbiddenOperationException("Authentication is required to perform this action");
+        }
         return (Integer) authentication.getPrincipal();
     }
 

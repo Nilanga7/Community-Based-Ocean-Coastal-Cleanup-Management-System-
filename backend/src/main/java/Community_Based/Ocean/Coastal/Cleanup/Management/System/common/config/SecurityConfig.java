@@ -3,8 +3,10 @@ package Community_Based.Ocean.Coastal.Cleanup.Management.System.common.config;
 import Community_Based.Ocean.Coastal.Cleanup.Management.System.common.error.ErrorCode;
 import Community_Based.Ocean.Coastal.Cleanup.Management.System.common.error.ErrorResponse;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -17,8 +19,12 @@ import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.io.IOException;
+import java.util.List;
 
 /**
  * Stateless JWT security config (see CLAUDE.md "Open technical decisions" / Auth mechanism).
@@ -27,6 +33,14 @@ import java.io.IOException;
  * @PreAuthorize, now that method security is enabled) get added as each protected endpoint lands
  * in later steps/modules — JwtAuthenticationFilter already grants a ROLE_<UserRole> authority so
  * those checks can be added without touching this class's shape.
+ * <p>
+ * CORS is enabled here (Step 11) so the frontend's dev server can actually call this API from a
+ * browser — without it, every fetch from a different origin is blocked client-side before this
+ * app ever sees the request. Origin comes from a property, not a hardcoded value, since it
+ * differs between local dev and any deployed frontend. The JWT itself stays in the Authorization
+ * header (frontend stores it in localStorage, not a cookie — see CLAUDE.md's "Open technical
+ * decisions"), so allowCredentials is deliberately left false: no cookie needs to cross the
+ * request for auth to work, and turning it on would just be exposure with no benefit.
  */
 @Configuration
 @EnableWebSecurity
@@ -34,6 +48,9 @@ import java.io.IOException;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    @Value("${cors.allowed-origin:http://localhost:5173}")
+    private String corsAllowedOrigin;
 
     public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
@@ -48,8 +65,18 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        // Browsers never send an Authorization header on a CORS preflight. In
+                        // practice Spring's CorsFilter (wired in above via .cors(...)) already
+                        // short-circuits a genuine preflight — one carrying both Origin and
+                        // Access-Control-Request-Method — before it ever reaches this
+                        // authorization check, so this rule is currently redundant with that.
+                        // It's kept explicit anyway as defense-in-depth: it must not depend on
+                        // CorsFilter's exact position in the chain staying what it is today, and
+                        // it documents the intent directly instead of leaving it implicit.
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/auth/register", "/auth/login").permitAll()
                         // Boot's default error handling internally forwards a 404/500 to /error,
                         // and that forwarded request re-enters this same filter chain. Without
@@ -65,6 +92,17 @@ public class SecurityConfig {
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
+    }
+
+    private CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOrigins(List.of(corsAllowedOrigin));
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
     }
 
     private AuthenticationEntryPoint unauthorizedEntryPoint() {

@@ -180,10 +180,21 @@ reconciliation pass. Adjust and lock in during step 2 (auth/roles), then treat a
 
 ### Testing expectations
 
-No tests exist yet since there's no code. Once a module lands its first endpoint, add at least a
-controller/service test for it and note the actual test command here (e.g. `mvn test`,
-`npm test`) — like the build/lint commands, don't leave this section as a placeholder once real
-code exists.
+User Registration & Profile Management (backend + frontend) has landed with real test coverage —
+the pattern below is what every other module should follow as it lands its own first endpoint.
+
+- **Backend** — from `backend/`: `./mvnw test` (or `mvnw.cmd test` on Windows). Requires the
+  Docker MySQL from "Local development setup" to be running first (`docker-compose up -d` from
+  the repo root) — tests hit the real dev database via `@SpringBootTest`/`@DataJpaTest`, not an
+  in-memory substitute, with `@Transactional` rolling back DB writes and `@AfterEach` cleanup for
+  anything written to disk (e.g. uploaded verification documents). Add at least a
+  controller/service test for every new endpoint, plus a unit test for any shared `common/`
+  utility with real branching logic (e.g. `RequestAuthorization`).
+- **Frontend** — from `frontend/`: `npm test` (Vitest + React Testing Library; `npm run
+  test:watch` for watch mode during development). No backend/Docker dependency — component tests
+  mock the `shared/api`/module `api/` layers rather than hitting a real server. Add at least a
+  component test per screen covering its validation/error states and, for anything behind
+  `ProtectedRoute`, an auth-failure case.
 
 ## Open technical decisions
 
