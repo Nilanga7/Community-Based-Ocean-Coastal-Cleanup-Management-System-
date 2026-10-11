@@ -1,0 +1,176 @@
+/* Volunteer app shell: a left sidebar on wider screens, a top bar plus bottom tabs on phones. */
+
+.vs-root {
+  min-height: 100%;
+  display: flex;
+  background: var(--surface-page);
+}
+
+.vs-sidebar {
+  width: 248px;
+  flex: 0 0 auto;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  padding: var(--space-5) var(--space-4);
+  background: var(--surface-brand);
+  color: var(--text-inverse);
+}
+
+.vs-side-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 44px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-md);
+  color: var(--text-inverse-muted);
+  font: var(--text-label);
+  text-decoration: none;
+  transition: background-color var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard);
+}
+.vs-side-link:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--white);
+}
+.vs-side-link.active {
+  background: rgba(53, 194, 183, 0.18);
+  color: var(--white);
+  box-shadow: inset 3px 0 0 var(--tide-400);
+}
+.vs-side-link .vs-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+.vs-side-link.active .vs-icon {
+  background: var(--tide-500);
+  color: var(--white);
+}
+
+.vs-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: var(--space-2);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  text-align: left;
+  color: var(--white);
+  transition: background-color var(--duration-fast) var(--ease-standard);
+}
+.vs-user:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.vs-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.vs-topbar,
+.vs-tabbar {
+  display: none;
+}
+
+.vs-main {
+  flex: 1;
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: var(--space-8) var(--space-6) var(--space-12);
+}
+
+.vs-badge {
+  position: absolute;
+  top: -5px;
+  right: -7px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  box-sizing: border-box;
+  border-radius: var(--radius-pill);
+  background: var(--coral-500);
+  color: var(--white);
+  font: 700 10px/17px var(--font-body);
+  text-align: center;
+}
+
+/* Phones: no room for a sidebar. */
+@media (max-width: 860px) {
+  .vs-sidebar {
+    display: none;
+  }
+  .vs-topbar {
+    display: flex;
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    height: var(--appbar-height);
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 0 var(--space-5);
+    background: var(--surface-brand);
+    color: var(--text-inverse);
+  }
+  .vs-tabbar {
+    display: flex;
+    position: sticky;
+    bottom: 0;
+    z-index: 20;
+    height: var(--tabbar-height);
+    background: var(--surface-card);
+    border-top: 1px solid var(--border-subtle);
+  }
+  .vs-main {
+    max-width: 640px;
+    padding: var(--space-5) var(--space-4) var(--space-16);
+  }
+}
+
+.vs-tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  color: var(--text-muted);
+  text-decoration: none;
+  font: 600 11px/1 var(--font-body);
+  letter-spacing: var(--tracking-micro);
+}
+.vs-tab.active {
+  color: var(--accent);
+}
+.vs-tab .vs-icon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 28px;
+  border-radius: 999px;
+  transition: background-color var(--duration-fast) var(--ease-standard);
+}
+.vs-tab.active .vs-icon {
+  background: var(--accent-soft);
+}
+
+.vs-side-link:focus-visible,
+.vs-tab:focus-visible,
+.vs-user:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}

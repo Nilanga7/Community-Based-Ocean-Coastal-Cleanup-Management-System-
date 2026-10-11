@@ -1,0 +1,357 @@
+/* Landing page only: motion, responsive layout and hover states inline styles can't express. */
+
+.tl-landing {
+  background: var(--sea-950);
+  color: var(--white);
+}
+
+.tl-wrap {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 var(--space-6);
+}
+
+/* Header condenses and gains a glass background once the page scrolls. */
+.tl-nav {
+  position: fixed;
+  inset: 0 0 auto 0;
+  z-index: 40;
+  transition: background-color var(--duration-slow) var(--ease-standard), padding var(--duration-slow) var(--ease-standard),
+    box-shadow var(--duration-slow) var(--ease-standard);
+  padding: var(--space-5) 0;
+}
+.tl-nav.is-scrolled {
+  background: rgba(5, 23, 31, 0.78);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  padding: var(--space-3) 0;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+.tl-nav-links a {
+  color: rgba(255, 255, 255, 0.72);
+  font: var(--text-label);
+  text-decoration: none;
+  padding: 6px 2px;
+  border-bottom: 2px solid transparent;
+  transition: color var(--duration-fast) var(--ease-standard), border-color var(--duration-fast) var(--ease-standard);
+}
+.tl-nav-links a:hover,
+.tl-nav-links a:focus-visible {
+  color: var(--white);
+  border-color: var(--tide-400);
+}
+
+/* Hero */
+.tl-hero {
+  position: relative;
+  overflow: hidden;
+  min-height: 680px;
+  padding: 140px 0 150px;
+  background: radial-gradient(1200px 600px at 80% 20%, rgba(15, 168, 159, 0.28), transparent 60%),
+    radial-gradient(900px 500px at 10% 90%, rgba(36, 131, 168, 0.35), transparent 60%),
+    linear-gradient(180deg, var(--sea-900) 0%, var(--sea-950) 100%);
+}
+.tl-hero-grid {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: var(--space-8);
+  align-items: center;
+}
+.tl-hero-title {
+  font: 700 clamp(36px, 5.2vw, 56px) / 1.04 var(--font-display);
+  letter-spacing: -0.035em;
+}
+.tl-slide {
+  animation: tl-slide-in 620ms var(--ease-out) both;
+}
+@keyframes tl-slide-in {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: none; }
+}
+.tl-dots button {
+  width: 34px;
+  height: 4px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.22);
+  cursor: pointer;
+  overflow: hidden;
+  position: relative;
+  padding: 0;
+}
+.tl-dots button[aria-current="true"]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--buoy-400);
+  transform-origin: left;
+  animation: tl-progress var(--tl-slide-ms, 6000ms) linear forwards;
+}
+.tl-hero.is-paused .tl-dots button[aria-current="true"]::after {
+  animation-play-state: paused;
+}
+@keyframes tl-progress {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+/* Layered waves drift at different speeds for depth. */
+.tl-waves {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -2px;
+  height: 180px;
+  z-index: 1;
+  pointer-events: none;
+}
+.tl-waves svg {
+  position: absolute;
+  bottom: 0;
+  width: 200%;
+  height: 100%;
+}
+.tl-wave-1 { animation: tl-drift 22s linear infinite; opacity: 0.35; }
+.tl-wave-2 { animation: tl-drift 15s linear infinite reverse; opacity: 0.55; }
+.tl-wave-3 { animation: tl-drift 30s linear infinite; }
+@keyframes tl-drift {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+/* Phone mock floats gently. */
+.tl-phone {
+  animation: tl-float 7s var(--ease-standard) infinite;
+}
+@keyframes tl-float {
+  0%, 100% { transform: translateY(0) rotate(-3deg); }
+  50% { transform: translateY(-14px) rotate(-1deg); }
+}
+
+/* Service tiles overlap the hero's bottom edge. */
+.tl-tiles {
+  position: relative;
+  z-index: 5;
+  margin-top: -84px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-4);
+}
+.tl-tile {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  border-radius: var(--radius-lg);
+  background: rgba(15, 52, 70, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: var(--white);
+  text-align: left;
+  cursor: pointer;
+  transition: transform var(--duration-base) var(--ease-out), background-color var(--duration-base) var(--ease-standard),
+    border-color var(--duration-base) var(--ease-standard), box-shadow var(--duration-base) var(--ease-standard);
+}
+.tl-tile:hover,
+.tl-tile:focus-visible {
+  transform: translateY(-6px);
+  background: rgba(20, 70, 92, 0.9);
+  border-color: rgba(53, 194, 183, 0.55);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+}
+.tl-tile .tl-tile-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform var(--duration-base) var(--ease-out);
+}
+.tl-tile:hover .tl-tile-icon { transform: scale(1.08) rotate(-4deg); }
+.tl-tile .tl-arrow { transition: transform var(--duration-base) var(--ease-out); }
+.tl-tile:hover .tl-arrow { transform: translateX(4px); }
+
+/* Sections */
+.tl-section { padding: var(--space-16) 0 0; }
+.tl-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+}
+.tl-panel {
+  border-radius: var(--radius-xl, 20px);
+  background: var(--sea-900);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+  min-height: 300px;
+}
+.tl-panel-body {
+  padding: var(--space-10, 40px);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--space-4);
+  height: 100%;
+}
+.tl-pill-btn {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: 999px;
+  background: var(--sea-950);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: var(--white);
+  font: var(--text-label);
+  cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease-standard), border-color var(--duration-fast) var(--ease-standard);
+}
+.tl-pill-btn:hover,
+.tl-pill-btn:focus-visible {
+  background: var(--tide-700);
+  border-color: var(--tide-500);
+}
+
+/* Promo banner */
+.tl-promo {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-xl, 20px);
+  background: linear-gradient(110deg, var(--buoy-400) 0%, var(--buoy-500) 55%, #f0a92a 100%);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  min-height: 220px;
+}
+.tl-promo-card {
+  margin: var(--space-6);
+  padding: var(--space-6);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 250, 238, 0.92);
+  color: var(--sea-950);
+}
+
+/* Latest cards */
+.tl-news {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-4);
+}
+.tl-news-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  min-height: 230px;
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--sea-800);
+  text-align: left;
+  color: var(--white);
+  padding: 0;
+  transition: transform var(--duration-base) var(--ease-out), box-shadow var(--duration-base) var(--ease-standard);
+}
+.tl-news-card:hover,
+.tl-news-card:focus-visible {
+  transform: translateY(-4px);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.4);
+}
+.tl-news-card .tl-news-media {
+  position: absolute;
+  inset: 0;
+  transition: transform 600ms var(--ease-out);
+}
+.tl-news-card:hover .tl-news-media { transform: scale(1.06); }
+.tl-segment button {
+  padding: 8px 16px;
+  border-radius: 999px;
+  font: var(--text-label);
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard);
+}
+.tl-segment button[aria-selected="true"] {
+  background: var(--white);
+  color: var(--sea-950);
+}
+
+/* Steps */
+.tl-steps {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-4);
+  counter-reset: step;
+}
+.tl-step {
+  position: relative;
+  padding: var(--space-6);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(180deg, rgba(15, 52, 70, 0.8), rgba(10, 37, 50, 0.6));
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  transition: border-color var(--duration-base) var(--ease-standard), transform var(--duration-base) var(--ease-out);
+}
+.tl-step:hover { border-color: rgba(53, 194, 183, 0.5); transform: translateY(-4px); }
+
+/* Scroll reveal */
+.tl-reveal {
+  opacity: 0;
+  transform: translateY(28px);
+  transition: opacity 700ms var(--ease-out), transform 700ms var(--ease-out);
+  transition-delay: var(--tl-delay, 0ms);
+}
+.tl-reveal.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+/* Footer */
+.tl-footer a {
+  color: rgba(255, 255, 255, 0.62);
+  text-decoration: none;
+  font: var(--text-body-sm);
+  transition: color var(--duration-fast) var(--ease-standard);
+}
+.tl-footer a:hover,
+.tl-footer a:focus-visible { color: var(--tide-300); }
+.tl-footer-cols {
+  display: grid;
+  grid-template-columns: 2fr repeat(3, 1fr);
+  gap: var(--space-8);
+}
+
+.tl-landing button:focus-visible,
+.tl-landing a:focus-visible {
+  outline: 2px solid var(--tide-400);
+  outline-offset: 3px;
+}
+
+@media (max-width: 960px) {
+  .tl-hero-grid { grid-template-columns: 1fr; }
+  .tl-phone-col { display: none; }
+  .tl-tiles { grid-template-columns: repeat(2, 1fr); }
+  .tl-split, .tl-promo { grid-template-columns: 1fr; }
+  .tl-promo-art { display: none; }
+  .tl-news, .tl-steps { grid-template-columns: 1fr 1fr; }
+  .tl-footer-cols { grid-template-columns: 1fr 1fr; }
+  .tl-nav-links { display: none !important; }
+  .tl-order-first { order: -1; }
+}
+
+@media (max-width: 600px) {
+  .tl-wrap { padding: 0 var(--space-4); }
+  .tl-hero { padding: 120px 0 130px; min-height: 0; }
+  .tl-tiles, .tl-news, .tl-steps, .tl-footer-cols { grid-template-columns: 1fr; }
+  .tl-panel-body { padding: var(--space-6); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tl-slide, .tl-wave-1, .tl-wave-2, .tl-wave-3, .tl-phone { animation: none; }
+  .tl-dots button[aria-current="true"]::after { animation: none; transform: scaleX(1); }
+  .tl-reveal { opacity: 1; transform: none; transition: none; }
+  .tl-tile, .tl-news-card, .tl-news-card .tl-news-media, .tl-step { transition: none; }
+}
