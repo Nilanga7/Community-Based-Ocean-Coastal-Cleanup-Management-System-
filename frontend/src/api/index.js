@@ -12,6 +12,37 @@ function query(params) {
 }
 
 export const api = {
+  auth: {
+    login: (email, password, rememberMe = false) =>
+      request('/api/auth/login', { method: 'POST', body: { email, password, rememberMe }, auth: false }),
+    forgotPassword: (email) =>
+      request('/api/auth/forgot-password', { method: 'POST', body: { email }, auth: false }),
+    resetPassword: (token, password) =>
+      request('/api/auth/reset-password', { method: 'POST', body: { token, password }, auth: false }),
+    /** Multipart: the account details as a JSON "data" part, plus any certificate files. */
+    register: (data, certificates = [], licences = []) => {
+      const form = new FormData();
+      form.append('data', new Blob([JSON.stringify(data)], { type: 'application/json' }));
+      certificates.forEach((file) => form.append('certificates', file));
+      licences.forEach((file) => form.append('licences', file));
+      return request('/api/auth/register', { method: 'POST', body: form, auth: false });
+    },
+  },
+
+  users: {
+    me: () => request('/api/users/me'),
+    profile: (id) => request(`/api/users/${id}`),
+    updateAvatar: (file) => {
+      const form = new FormData();
+      form.append('photo', file);
+      return request('/api/users/me/avatar', { method: 'PUT', body: form });
+    },
+    removeAvatar: () => request('/api/users/me/avatar', { method: 'DELETE' }),
+    updateProfile: (payload) => request('/api/users/me', { method: 'PUT', body: payload }),
+    updateDiverProfile: (payload) =>
+      request('/api/users/me/diver-profile', { method: 'PUT', body: payload }),
+  },
+
   projects: {
     // Public, but sending the token lets the API report whether the viewer has joined.
     list: (params) => request(`/api/projects${query(params)}`),
@@ -37,5 +68,9 @@ export const api = {
     reviewAccount: (id, approved, reason) =>
       request(`/api/admin/verifications/${id}`, { method: 'POST', body: { approved, reason } }),
     document: (id) => requestBlob(`/api/admin/documents/${id}`),
+  },
+
+  analytics: {
+    summary: () => request('/api/analytics/summary', { auth: false }),
   },
 };

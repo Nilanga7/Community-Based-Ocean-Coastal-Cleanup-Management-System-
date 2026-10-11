@@ -6,6 +6,10 @@ import lk.tideline.cleanup.model.AccountDocument;
 import lk.tideline.cleanup.model.AccountStatus;
 import lk.tideline.cleanup.model.CertificationLevel;
 import lk.tideline.cleanup.model.DocumentKind;
+import lk.tideline.cleanup.model.CleanupProject;
+import lk.tideline.cleanup.model.DiverProfile;
+import lk.tideline.cleanup.model.OrganizationType;
+import lk.tideline.cleanup.model.ProjectStatus;
 import lk.tideline.cleanup.model.DiverProfile;
 import lk.tideline.cleanup.model.OrganizationType;
 import lk.tideline.cleanup.model.Role;
@@ -22,6 +26,160 @@ public final class UserDtos {
     /** Where a member's profile picture is served, or null when they haven't added one. */
     public static String avatarUrlOf(User user) {
         return user == null || user.getAvatarStoredName() == null ? null : "/api/users/avatars/" + user.getAvatarStoredName();
+    }
+
+    public record UserResponse(
+            Long id,
+            String fullName,
+            String avatarUrl,
+            String email,
+            String phone,
+            Role role,
+            AccountStatus accountStatus,
+            String province,
+            String city,
+            Double latitude,
+            Double longitude,
+            boolean availableForAlerts,
+            String organizationName,
+            OrganizationType organizationType,
+            String websiteUrl,
+            DiverProfileResponse diverProfile,
+            /** Average organiser rating (1-5) across completed cleanups; null until someone rates them. */
+            Double averageMark,
+            Integer markedCleanups,
+            /** Projects created from this user's reports — the "project owner" badge. */
+            List<OwnedProject> ownedProjects
+    ) {
+        public static UserResponse from(User user, Double averageMark, Integer markedCleanups, List<OwnedProject> ownedProjects) {
+            return new UserResponse(
+                    user.getId(),
+                    user.getFullName(),
+                    avatarUrlOf(user),
+                    user.getEmail(),
+                    user.getPhone(),
+                    user.getRole(),
+                    user.getAccountStatus(),
+                    user.getProvince(),
+                    user.getCity(),
+                    user.getLatitude(),
+                    user.getLongitude(),
+                    user.isAvailableForAlerts(),
+                    user.getOrganizationName(),
+                    user.getOrganizationType(),
+                    user.getWebsiteUrl(),
+                    DiverProfileResponse.from(user.getDiverProfile()),
+                    averageMark,
+                    markedCleanups,
+                    ownedProjects);
+        }
+    }
+
+    /**
+     * What other signed-in people see on someone's profile. No email, phone or saved location.
+     */
+    public record PublicProfileResponse(
+            Long id,
+            String fullName,
+            String avatarUrl,
+            Role role,
+            boolean verified,
+            String province,
+            String city,
+            Instant memberSince,
+            String organizationName,
+            OrganizationType organizationType,
+            String websiteUrl,
+            CertificationLevel certificationLevel,
+            Integer experienceYears,
+            List<String> preferredRegions,
+            Integer completedProjects,
+            Double averageMark,
+            Integer markedCleanups,
+            long reportsSubmitted,
+            List<OwnedProject> ownedProjects
+    ) {
+        public static PublicProfileResponse from(User user, Double averageMark, Integer markedCleanups,
+                                                 long reportsSubmitted, List<OwnedProject> ownedProjects) {
+            DiverProfile diver = user.getDiverProfile();
+            return new PublicProfileResponse(
+                    user.getId(),
+                    user.getFullName(),
+                    avatarUrlOf(user),
+                    user.getRole(),
+                    user.getAccountStatus() == AccountStatus.APPROVED,
+                    user.getProvince(),
+                    user.getCity(),
+                    user.getCreatedAt(),
+                    user.getOrganizationName(),
+                    user.getOrganizationType(),
+                    user.getWebsiteUrl(),
+                    diver == null ? null : diver.getCertificationLevel(),
+                    diver == null ? null : diver.getExperienceYears(),
+                    diver == null ? null : List.copyOf(diver.getPreferredRegions()),
+                    diver == null ? null : diver.getCompletedProjects(),
+                    averageMark,
+                    markedCleanups,
+                    reportsSubmitted,
+                    ownedProjects);
+        }
+    }
+
+    public record OwnedProject(Long id, String reference, String title, ProjectStatus status) {
+        public static OwnedProject from(CleanupProject project) {
+            return new OwnedProject(project.getId(), project.getReference(), project.getTitle(), project.getStatus());
+        }
+    }
+
+    /** Compact author reference embedded in reports, comments and projects. */
+    public record UserSummary(Long id, String fullName, Role role, String avatarUrl) {
+        public static UserSummary from(User user) {
+            if (user == null) {
+                return null;
+            }
+            return new UserSummary(user.getId(), user.getFullName(), user.getRole(), avatarUrlOf(user));
+        }
+    }
+
+    public record DiverProfileResponse(
+            CertificationLevel certificationLevel,
+            Integer experienceYears,
+            String equipment,
+            List<String> preferredRegions,
+            int completedProjects
+    ) {
+        public static DiverProfileResponse from(DiverProfile profile) {
+            if (profile == null) {
+                return null;
+            }
+            return new DiverProfileResponse(
+                    profile.getCertificationLevel(),
+                    profile.getExperienceYears(),
+                    profile.getEquipment(),
+                    profile.getPreferredRegions(),
+                    profile.getCompletedProjects());
+        }
+    }
+
+    public record UpdateProfileRequest(
+            String fullName,
+            String phone,
+            String province,
+            String city,
+            Double latitude,
+            Double longitude,
+            Boolean availableForAlerts,
+            String organizationName,
+            OrganizationType organizationType
+    ) {
+    }
+
+    public record UpdateDiverProfileRequest(
+            CertificationLevel certificationLevel,
+            Integer experienceYears,
+            String equipment,
+            List<String> preferredRegions
+    ) {
     }
 
     /** Admin view of an account (module 4). */

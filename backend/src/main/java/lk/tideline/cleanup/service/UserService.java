@@ -4,6 +4,28 @@ import lk.tideline.cleanup.dto.UserDtos.AccountReviewRequest;
 import lk.tideline.cleanup.dto.UserDtos.AccountReviewResponse;
 import lk.tideline.cleanup.dto.UserDtos.AdminUserResponse;
 import lk.tideline.cleanup.dto.UserDtos.DocumentDownload;
+import lk.tideline.cleanup.dto.UserDtos.OwnedProject;
+import lk.tideline.cleanup.dto.UserDtos.PublicProfileResponse;
+import lk.tideline.cleanup.dto.UserDtos.SuspensionRequest;
+import lk.tideline.cleanup.dto.UserDtos.UpdateDiverProfileRequest;
+import lk.tideline.cleanup.dto.UserDtos.UpdateProfileRequest;
+import lk.tideline.cleanup.dto.UserDtos.UserResponse;
+import lk.tideline.cleanup.model.AccountDocument;
+import lk.tideline.cleanup.model.AccountStatus;
+import lk.tideline.cleanup.model.AlertType;
+import lk.tideline.cleanup.model.DiverProfile;
+import lk.tideline.cleanup.model.Role;
+import lk.tideline.cleanup.model.User;
+import lk.tideline.cleanup.repository.AccountDocumentRepository;
+import lk.tideline.cleanup.repository.CleanupProjectRepository;
+import lk.tideline.cleanup.repository.PollutionReportRepository;
+import lk.tideline.cleanup.repository.ProjectParticipantRepository;
+import lk.tideline.cleanup.repository.UserRepository;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.util.ArrayList;
 import lk.tideline.cleanup.dto.UserDtos.SuspensionRequest;
 import lk.tideline.cleanup.model.AccountDocument;
 import lk.tideline.cleanup.model.AccountStatus;
@@ -24,6 +46,78 @@ public class UserService {
     private static final List<Role> VERIFIED_ROLES = List.of(Role.DIVER, Role.ORGANIZATION, Role.AUTHORITY, Role.ADMIN);
 
     private final UserRepository userRepository;
+    private final ProjectParticipantRepository participantRepository;
+    private final CleanupProjectRepository projectRepository;
+    private final AccountDocumentRepository documentRepository;
+    private final DocumentStorageService storage;
+    private final AlertService alertService;
+    private final PollutionReportRepository reportRepository;
+
+    public UserService(UserRepository userRepository,
+                       ProjectParticipantRepository participantRepository,
+                       CleanupProjectRepository projectRepository,
+                       AccountDocumentRepository documentRepository,
+                       DocumentStorageService storage,
+                       AlertService alertService,
+                       PollutionReportRepository reportRepository) {
+        this.userRepository = userRepository;
+        this.participantRepository = participantRepository;
+        this.projectRepository = projectRepository;
+        this.documentRepository = documentRepository;
+        this.storage = storage;
+        this.alertService = alertService;
+        this.reportRepository = reportRepository;
+    }
+
+    /** Re-loads inside a transaction so the lazy diver profile can be mapped. */
+    @Transactional(readOnly = true)
+    public UserResponse view(Long id) {
+        return toResponse(get(id));
+    }
+
+    /**
+     * Someone's public profile. Accounts still waiting for (or refused) verification, and suspended
+     * accounts, aren't shown to other members.
+     */
+    @Transactional(readOnly = true)
+    public PublicProfileResponse publicProfile(Long id, User viewer) {
+        User user = get(id);
+        boolean self = viewer != null && viewer.getId().equals(user.getId());
+        boolean admin = viewer != null && viewer.getRole() == Role.ADMIN;
+        if (!self && !admin && (user.isSuspended() || user.getAccountStatus() != AccountStatus.APPROVED)) {
+            throw new NotFoundException("User " + id + " was not found.");
+        }
+        Double average = participantRepository.averageMark(user.getId());
+        long marked = participantRepository.countByUserIdAndContributionMarkIsNotNull(user.getId());
+        List<OwnedProject> owned = projectRepository.findByOwnerIdOrderByCreatedAtDesc(user.getId()).stream()
+                .map(OwnedProject::from)
+                .toList();
+        return PublicProfileResponse.from(user,
+                average == null ? null : Math.round(average * 10) / 10.0,
+                (int) marked,
+                reportRepository.countByReporterId(user.getId()),
+                owned);
+    }
+
+    @Transactional
+    public UserResponse updateAvatar(Long userId, MultipartFile photo) {
+        User user = get(userId);
+        DocumentStorageService.CheckedFile checked = storage.checkAvatar(photo);
+        String previous = user.getAvatarStoredName();
+        user.setAvatarStoredName(storage.saveAvatar(checked));
+        userRepository.save(user);
+        storage.deleteAvatar(previous);
+        return toResponse(user);
+    }
+
+    @Transactional
+    public UserResponse removeAvatar(Long userId) {
+        User user = get(userId);
+        String previous = user.getAvatarStoredName();
+        user.setAvatarStoredName(null);
+        userRepository.save(user);
+        storage.deleteAvatar(previous);
+        return toResponse(user);
     private final AccountDocumentRepository documentRepository;
     private final DocumentStorageService storage;
     private final AlertService alertService;
@@ -41,6 +135,84 @@ public class UserService {
     private User get(Long id) {
         return userRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("User " + id + " was not found."));
+    }
+
+    private UserResponse toResponse(User user) {
+        Double average = participantRepository.averageMark(user.getId());
+        long marked = participantRepository.countByUserIdAndContributionMarkIsNotNull(user.getId());
+        List<OwnedProject> owned = projectRepository.findByOwnerIdOrderByCreatedAtDesc(user.getId()).stream()
+                .map(OwnedProject::from)
+                .toList();
+        return UserResponse.from(user,
+                average == null ? null : Math.round(average * 10) / 10.0,
+                (int) marked,
+                owned);
+    }
+
+    @Transactional
+    public UserResponse updateProfile(Long userId, UpdateProfileRequest request) {
+        User user = get(userId);
+
+        if (request.fullName() != null) {
+            user.setFullName(request.fullName());
+        }
+        if (request.phone() != null) {
+            user.setPhone(request.phone());
+        }
+        if (request.province() != null) {
+            user.setProvince(request.province());
+        }
+        if (request.city() != null) {
+            user.setCity(request.city());
+        }
+        if (request.latitude() != null) {
+            user.setLatitude(request.latitude());
+        }
+        if (request.longitude() != null) {
+            user.setLongitude(request.longitude());
+        }
+        if (request.availableForAlerts() != null) {
+            user.setAvailableForAlerts(request.availableForAlerts());
+        }
+        if (request.organizationName() != null) {
+            user.setOrganizationName(request.organizationName());
+        }
+        if (request.organizationType() != null) {
+            user.setOrganizationType(request.organizationType());
+        }
+
+        return toResponse(userRepository.save(user));
+    }
+
+    @Transactional
+    public UserResponse updateDiverProfile(Long userId, UpdateDiverProfileRequest request) {
+        User user = get(userId);
+
+        if (user.getRole() != Role.DIVER) {
+            throw new IllegalStateException("Only a volunteer diver has a diving profile.");
+        }
+
+        DiverProfile profile = user.getDiverProfile();
+        if (profile == null) {
+            profile = new DiverProfile();
+            profile.setUser(user);
+            user.setDiverProfile(profile);
+        }
+
+        if (request.certificationLevel() != null) {
+            profile.setCertificationLevel(request.certificationLevel());
+        }
+        if (request.experienceYears() != null) {
+            profile.setExperienceYears(request.experienceYears());
+        }
+        if (request.equipment() != null) {
+            profile.setEquipment(request.equipment());
+        }
+        if (request.preferredRegions() != null) {
+            profile.setPreferredRegions(new ArrayList<>(request.preferredRegions()));
+        }
+
+        return toResponse(userRepository.save(user));
     }
 
     /** Module 4 — account list for administrators, optionally filtered by name or email. */

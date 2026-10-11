@@ -13,6 +13,8 @@ public interface CleanupProjectRepository extends JpaRepository<CleanupProject, 
 
     List<CleanupProject> findAllByOrderByCreatedAtDesc();
 
+    long countByStatus(ProjectStatus status);
+
     List<CleanupProject> findByReportIdOrderByCreatedAtDesc(Long reportId);
 
     Optional<CleanupProject> findFirstByReportId(Long reportId);

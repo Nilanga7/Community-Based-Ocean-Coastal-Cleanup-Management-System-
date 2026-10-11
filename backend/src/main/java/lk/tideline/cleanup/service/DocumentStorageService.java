@@ -1,6 +1,9 @@
 package lk.tideline.cleanup.service;
 
 import lk.tideline.cleanup.config.TidelineProperties;
+import lk.tideline.cleanup.model.AccountDocument;
+import lk.tideline.cleanup.model.DocumentKind;
+import lk.tideline.cleanup.model.User;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
@@ -9,6 +12,12 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
@@ -55,6 +64,65 @@ public class DocumentStorageService {
     private record FileType(String contentType, String extension) {
     }
 
+    /** Certificate files for a diver's registration. */
+    public List<CheckedFile> check(List<MultipartFile> files) {
+        List<CheckedFile> checked = new ArrayList<>();
+        for (MultipartFile file : present(files, MAX_FILES)) {
+            String name = displayName(file.getOriginalFilename());
+            if (file.getSize() > MAX_FILE_BYTES) {
+                throw new IllegalArgumentException(name + " is larger than 5 MB.");
+            }
+            byte[] bytes = bytes(file, name);
+            FileType type = detect(bytes);
+            if (type == null) {
+                throw new IllegalArgumentException(name + " is not a PDF, JPG or PNG file.");
+            }
+            checked.add(new CheckedFile(name, type.contentType(), type.extension(), bytes));
+        }
+        return checked;
+    }
+
+    /** A profile picture: one JPG, PNG or WebP image up to 5 MB. */
+    public CheckedFile checkAvatar(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("Choose a photo to upload.");
+        }
+        CheckedFile checked = checkInfoPhotos(List.of(file)).get(0);
+        if (checked.bytes().length > MAX_AVATAR_BYTES) {
+            throw new IllegalArgumentException(checked.originalName() + " is larger than 5 MB.");
+        }
+        return checked;
+    }
+
+    public String saveAvatar(CheckedFile file) {
+        String storedName = UUID.randomUUID() + file.extension();
+        write(AVATAR_FOLDER + "/" + storedName, file.bytes());
+        return storedName;
+    }
+
+    public Path avatarPath(String storedName) {
+        if (storedName == null || !INFO_NAME.matcher(storedName).matches()) {
+            throw new NotFoundException("That file was not found.");
+        }
+        Path path = resolve(AVATAR_FOLDER + "/" + storedName);
+        if (!Files.isRegularFile(path)) {
+            throw new NotFoundException("That file was not found.");
+        }
+        return path;
+    }
+
+    /** Best-effort: a missing file is fine, the account no longer points at it. */
+    public void deleteAvatar(String storedName) {
+        if (storedName == null || !INFO_NAME.matcher(storedName).matches()) {
+            return;
+        }
+        try {
+            Files.deleteIfExists(resolve(AVATAR_FOLDER + "/" + storedName));
+        } catch (IOException ignored) {
+            // Leaving an orphaned file behind is harmless.
+        }
+    }
+
     private static List<MultipartFile> present(List<MultipartFile> files, int max) {
         List<MultipartFile> present = files == null
                 ? List.of()
@@ -73,11 +141,35 @@ public class DocumentStorageService {
         }
     }
 
+    public AccountDocument save(User owner, CheckedFile file, DocumentKind kind) {
+        String storedName = UUID.randomUUID() + file.extension();
+        write(storedName, file.bytes());
+
+        AccountDocument document = new AccountDocument();
+        document.setUser(owner);
+        document.setKind(kind);
+        document.setOriginalName(file.originalName());
+        document.setStoredName(storedName);
+        document.setContentType(file.contentType());
+        document.setSizeBytes(file.bytes().length);
+        return document;
+    }
+
     public void write(String storedName, byte[] bytes) {
         try {
             Files.write(resolve(storedName), bytes);
         } catch (IOException e) {
             throw new UncheckedIOException("Could not save an uploaded file.", e);
+        }
+    }
+
+    public byte[] read(AccountDocument document) {
+        try {
+            return Files.readAllBytes(resolve(document.getStoredName()));
+        } catch (NoSuchFileException e) {
+            throw new NotFoundException("That file is no longer on the server.");
+        } catch (IOException e) {
+            throw new UncheckedIOException("Could not read that file.", e);
         }
     }
 
