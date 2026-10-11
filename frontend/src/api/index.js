@@ -1,0 +1,76 @@
+import { request, requestBlob } from './client.js';
+
+function query(params) {
+  const search = new URLSearchParams();
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== '' && value !== 'all') {
+      search.append(key, value);
+    }
+  });
+  const string = search.toString();
+  return string ? `?${string}` : '';
+}
+
+export const api = {
+  auth: {
+    login: (email, password, rememberMe = false) =>
+      request('/api/auth/login', { method: 'POST', body: { email, password, rememberMe }, auth: false }),
+    forgotPassword: (email) =>
+      request('/api/auth/forgot-password', { method: 'POST', body: { email }, auth: false }),
+    resetPassword: (token, password) =>
+      request('/api/auth/reset-password', { method: 'POST', body: { token, password }, auth: false }),
+    /** Multipart: the account details as a JSON "data" part, plus any certificate files. */
+    register: (data, certificates = [], licences = []) => {
+      const form = new FormData();
+      form.append('data', new Blob([JSON.stringify(data)], { type: 'application/json' }));
+      certificates.forEach((file) => form.append('certificates', file));
+      licences.forEach((file) => form.append('licences', file));
+      return request('/api/auth/register', { method: 'POST', body: form, auth: false });
+    },
+  },
+
+  users: {
+    me: () => request('/api/users/me'),
+    profile: (id) => request(`/api/users/${id}`),
+    updateAvatar: (file) => {
+      const form = new FormData();
+      form.append('photo', file);
+      return request('/api/users/me/avatar', { method: 'PUT', body: form });
+    },
+    removeAvatar: () => request('/api/users/me/avatar', { method: 'DELETE' }),
+    updateProfile: (payload) => request('/api/users/me', { method: 'PUT', body: payload }),
+    updateDiverProfile: (payload) =>
+      request('/api/users/me/diver-profile', { method: 'PUT', body: payload }),
+  },
+
+  projects: {
+    // Public, but sending the token lets the API report whether the viewer has joined.
+    list: (params) => request(`/api/projects${query(params)}`),
+    get: (id) => request(`/api/projects/${id}`),
+    join: (id, participantRole) =>
+      request(`/api/projects/${id}/participants`, { method: 'POST', body: { participantRole } }),
+    addUpdate: (id, payload) =>
+      request(`/api/projects/${id}/updates`, { method: 'POST', body: payload }),
+  },
+
+  alerts: {
+    list: () => request('/api/alerts'),
+    unreadCount: () => request('/api/alerts/unread-count'),
+    markRead: (id) => request(`/api/alerts/${id}/read`, { method: 'POST' }),
+    markAllRead: () => request('/api/alerts/read-all', { method: 'POST' }),
+  },
+
+  admin: {
+    users: (search) => request(`/api/admin/users${query({ query: search })}`),
+    setSuspension: (id, suspended, reason) =>
+      request(`/api/admin/users/${id}/suspension`, { method: 'POST', body: { suspended, reason } }),
+    verifications: (status) => request(`/api/admin/verifications${query({ status })}`),
+    reviewAccount: (id, approved, reason) =>
+      request(`/api/admin/verifications/${id}`, { method: 'POST', body: { approved, reason } }),
+    document: (id) => requestBlob(`/api/admin/documents/${id}`),
+  },
+
+  analytics: {
+    summary: () => request('/api/analytics/summary', { auth: false }),
+  },
+};
