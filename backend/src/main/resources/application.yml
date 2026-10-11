@@ -1,0 +1,76 @@
+spring:
+  application:
+    name: cleanup-backend
+
+  # Default profile runs on in-memory H2 so the API starts with no database setup.
+  # Use the `mysql` profile (application-mysql.yml) for the real target database.
+  datasource:
+    url: jdbc:h2:mem:tideline;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ''
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    open-in-view: false
+    properties:
+      hibernate.format_sql: true
+      # Enums are stored as text without CHECK lists, so new statuses don't break a saved database.
+      hibernate.dialect: lk.tideline.cleanup.config.dialect.TidelineH2Dialect
+
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+  jackson:
+    default-property-inclusion: non_null
+
+  # Divers attach up to five certificates of 5 MB each when they register.
+  servlet:
+    multipart:
+      max-file-size: 25MB
+      max-request-size: 80MB
+
+server:
+  # Hosts such as Render and Railway inject PORT.
+  port: ${PORT:8080}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      # /actuator/health/readiness only turns UP once startup work, including demo seeding, is done.
+      probes:
+        enabled: true
+
+tideline:
+  # A report passes community verification with at least 5 confirmations and 75% trust.
+  verification:
+    threshold-percent: 75
+    minimum-confirmations: 5
+  # New reports alert available users within this distance.
+  alerts:
+    initial-radius-km: 5
+  security:
+    jwt-secret: ${TIDELINE_JWT_SECRET:dev-only-secret-change-me-in-production-0123456789abcdef}
+    jwt-expiry-minutes: 720
+    remember-me-days: 30
+  # Links in emails point here. Password reset emails need spring.mail.host (SPRING_MAIL_HOST) to be set;
+  # without it the reset link is written to the server log.
+  frontend-url: ${FRONTEND_URL:http://localhost:5173}
+  mail:
+    from: ${MAIL_FROM:Tideline <no-reply@tideline.lk>}
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:4173}
+  uploads:
+    directory: ${UPLOADS_DIR:uploads}
+  seed-demo-data: true
+
+logging:
+  level:
+    lk.tideline.cleanup: DEBUG
