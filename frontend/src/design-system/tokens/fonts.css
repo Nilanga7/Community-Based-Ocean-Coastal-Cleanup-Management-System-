@@ -1,0 +1,11 @@
+/* Tideline webfonts.
+   The source repository ships no font binaries (its frontend is an unmodified Vite starter
+   using system-ui). These are Google Fonts substitutions — see readme.md § Typography.
+   Swap this @import for @font-face rules when self-hosted binaries are supplied. */
+@import url("https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap");
+
+:root {
+  --font-display: "Sora", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Instrument Sans", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+}
