@@ -1,0 +1,66 @@
+:root {
+  /* Text */
+  --text-strong: var(--sea-950);
+  --text-heading: var(--sea-900);
+  --text-body-color: var(--gray-700);
+  --text-muted: var(--gray-500);
+  --text-inverse: var(--white);
+  --text-inverse-muted: rgba(255, 255, 255, 0.72);
+  --text-link: var(--tide-700);
+  --text-link-hover: var(--tide-800);
+  --text-on-accent: var(--white);
+
+  /* Surfaces */
+  --surface-page: var(--gray-50);
+  --surface-page-warm: var(--sand-50);
+  --surface-card: var(--white);
+  --surface-sunken: var(--gray-100);
+  --surface-inverse: var(--sea-950);
+  --surface-brand: var(--sea-900);
+  --surface-accent-soft: var(--tide-100);
+  --surface-overlay: rgba(5, 23, 31, 0.55);
+  --surface-glass: rgba(255, 255, 255, 0.72);
+
+  /* Borders */
+  --border-subtle: var(--gray-200);
+  --border-default: var(--gray-300);
+  --border-strong: var(--gray-500);
+  --border-inverse: rgba(255, 255, 255, 0.18);
+  --border-accent: var(--tide-500);
+
+  /* Accent / action */
+  --accent: var(--tide-600);
+  --accent-hover: var(--tide-700);
+  --accent-press: var(--tide-800);
+  --accent-soft: var(--tide-100);
+  --accent-on-soft: var(--tide-800);
+  --focus-ring: var(--shadow-focus);
+
+  /* Report lifecycle — the core domain vocabulary (see readme.md) */
+  --status-pending: var(--buoy-600);
+  --status-pending-bg: var(--buoy-100);
+  --status-verifying: var(--sea-600);
+  --status-verifying-bg: var(--sea-100);
+  --status-verified: var(--kelp-600);
+  --status-verified-bg: var(--kelp-100);
+  --status-escalated: var(--coral-600);
+  --status-escalated-bg: var(--coral-100);
+  --status-rejected: var(--gray-600);
+  --status-rejected-bg: var(--gray-100);
+
+  /* Pollution severity */
+  --severity-low: var(--kelp-500);
+  --severity-medium: var(--buoy-500);
+  --severity-high: var(--coral-500);
+  --severity-critical: var(--coral-700);
+
+  /* Feedback */
+  --success: var(--kelp-600);
+  --success-bg: var(--kelp-100);
+  --warning: var(--buoy-600);
+  --warning-bg: var(--buoy-100);
+  --danger: var(--coral-600);
+  --danger-bg: var(--coral-100);
+  --info: var(--sea-600);
+  --info-bg: var(--sea-100);
+}

@@ -10,6 +10,8 @@ import lk.tideline.cleanup.model.CleanupProject;
 import lk.tideline.cleanup.model.DiverProfile;
 import lk.tideline.cleanup.model.OrganizationType;
 import lk.tideline.cleanup.model.ProjectStatus;
+import lk.tideline.cleanup.model.DiverProfile;
+import lk.tideline.cleanup.model.OrganizationType;
 import lk.tideline.cleanup.model.Role;
 import lk.tideline.cleanup.model.User;
 

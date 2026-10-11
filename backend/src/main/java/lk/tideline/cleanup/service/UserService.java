@@ -26,6 +26,17 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.ArrayList;
+import lk.tideline.cleanup.dto.UserDtos.SuspensionRequest;
+import lk.tideline.cleanup.model.AccountDocument;
+import lk.tideline.cleanup.model.AccountStatus;
+import lk.tideline.cleanup.model.AlertType;
+import lk.tideline.cleanup.model.Role;
+import lk.tideline.cleanup.model.User;
+import lk.tideline.cleanup.repository.AccountDocumentRepository;
+import lk.tideline.cleanup.repository.UserRepository;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import java.util.List;
 
 @Service
@@ -107,6 +118,18 @@ public class UserService {
         userRepository.save(user);
         storage.deleteAvatar(previous);
         return toResponse(user);
+    private final AccountDocumentRepository documentRepository;
+    private final DocumentStorageService storage;
+    private final AlertService alertService;
+
+    public UserService(UserRepository userRepository,
+                       AccountDocumentRepository documentRepository,
+                       DocumentStorageService storage,
+                       AlertService alertService) {
+        this.userRepository = userRepository;
+        this.documentRepository = documentRepository;
+        this.storage = storage;
+        this.alertService = alertService;
     }
 
     private User get(Long id) {
